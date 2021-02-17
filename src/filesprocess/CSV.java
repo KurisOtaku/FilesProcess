@@ -278,7 +278,7 @@ public class CSV {
         }
 
         public String getValueOf(String field_name) {
-            return getField(field_name);
+            return arruma(getField(field_name));
         }
 
         public String getValueOf(String... fields) {
