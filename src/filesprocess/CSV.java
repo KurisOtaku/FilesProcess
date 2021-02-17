@@ -14,7 +14,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
-  * @author cristiano.rosa
+ * @author cristiano.rosa
  */
 public class CSV {
 
@@ -36,6 +36,13 @@ public class CSV {
         this.filecontent = filecontent;
         this.cabecalho = cabecalho;
         this.registros = new Registros(registros);
+    }
+
+    private CSV(CSV csv, ArrayList<Registro> rs) {
+        this.pathfile = csv.pathfile;
+        this.filecontent = csv.filecontent;
+        this.cabecalho = csv.cabecalho;
+        this.registros = new Registros(rs);
     }
 
     private String openfile(String path_file_complet, String encode) {
@@ -61,6 +68,31 @@ public class CSV {
         } else {
             throw new Exception("Não encontrado");
         }
+    }
+
+    public CSV filter(int value, String fieldname) throws Exception {
+        ArrayList<Registro> rs;
+        int index = cabecalho.find(fieldname);
+        rs = this.registros.findByIntValue(value, index);
+        CSV resp = new CSV(this, rs);
+        if (rs != null) {
+            return resp;
+        } else {
+            throw new Exception("Não encontrado");
+        }
+    }
+
+    public CSV filter(String value, String fieldname) throws Exception {
+        ArrayList<Registro> rs;
+        int index = cabecalho.find(fieldname);
+        rs = this.registros.find(value, index);
+        CSV resp = new CSV(this, rs);
+        if (rs != null) {
+            return resp;
+        } else {
+            throw new Exception("Não encontrado");
+        }
+
     }
 
     public ArrayList<Registro> findRegisterBy(int value, String fieldname) throws Exception {
@@ -252,16 +284,30 @@ public class CSV {
         public String getValueOf(String... fields) {
             String r = "";
             for (int x = 0; x < fields.length; x++) {
-                r += getValueOf(fields[x]);
+                r += arruma(getValueOf(fields[x]));
                 if (x < fields.length - 1) {
                     r += " : ";
                 };
             }
             return r;
         }
+
     }
 
-    private String arrumar(String string) {
+    public static String arruma(String s) {
+        boolean repete = true;
+        while (repete) {
+            s = s.replace("  ", "");
+            repete = s.contains("  ");
+        }
+        try {
+            s = String.valueOf(Long.valueOf(s));
+        } catch (Exception e) {
+        }
+        return s.replace("  ", "");
+    }
+
+    public String arrumar(String string) {
         return string.replaceAll("  ", "");
     }
 
