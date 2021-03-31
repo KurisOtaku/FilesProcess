@@ -30,6 +30,17 @@ public class CSV {
         builder();
     }
 
+    public CSV(String pathfile, String encode) {
+        this.pathfile = pathfile;
+        this.filecontent = openfile(pathfile, encode).replace("\r", "");
+        this.registros = new Registros();
+        builder();
+    }
+
+    public ArrayList<String> getCabecalho() {
+        return (ArrayList<String>) cabecalho.atributos.clone();
+    }
+
     public CSV(String pathfile, String filecontent, Cabecalho cabecalho,
             ArrayList<Registro> registros) {
         this.pathfile = pathfile;
@@ -60,6 +71,10 @@ public class CSV {
         METODOS PUBLICOS
     ======================================================================    
      */
+    public String getFirstOf(String field) {
+        return this.registros.get(0).getValueOf(field);
+    }
+
     public ArrayList<Registro> getAll() throws Exception {
         ArrayList<Registro> rs;
         rs = this.registros.getAll();
@@ -90,7 +105,7 @@ public class CSV {
         if (rs != null) {
             return resp;
         } else {
-            throw new Exception("Não encontrado");
+            throw new Exception("Valor \"" + fieldname + "\" Não encontrado");
         }
 
     }
@@ -175,6 +190,10 @@ public class CSV {
 
         public Registros() {
             this.registros = new ArrayList<Registro>();
+        }
+
+        public Registro get(int index) {
+            return this.registros.get(index);
         }
 
         private Registros(ArrayList<Registro> registros) {
@@ -281,6 +300,14 @@ public class CSV {
             return arruma(getField(field_name));
         }
 
+        public ArrayList<String> getValueOf(ArrayList<String> fields) {
+            ArrayList<String> r = new ArrayList<String>();
+            for (String field : fields) {
+                r.add(getValueOf(field));
+            }
+            return r;
+        }
+
         public String getValueOf(String... fields) {
             String r = "";
             for (int x = 0; x < fields.length; x++) {
@@ -333,6 +360,13 @@ public class CSV {
         }
 
         private int find(String fieldname) {
+            if (this.atributos.indexOf(fieldname) < 0) {
+                for (String atributo : atributos) {
+                    if (atributo.contains(fieldname)) {
+                        return this.atributos.indexOf(atributo);
+                    }
+                }
+            }
             return this.atributos.indexOf(fieldname);
         }
 
@@ -341,4 +375,12 @@ public class CSV {
         }
 
     }
+
+    class Cell {
+
+        private Object value;
+        private Object extra;
+        private String atributename;
+    }
+
 }
