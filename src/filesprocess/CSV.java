@@ -8,6 +8,8 @@ package filesprocess;
 import br.zul.JTxtFile.JTxtFileFastReader;
 import java.io.File;
 import java.nio.charset.Charset;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.logging.Level;
@@ -22,6 +24,14 @@ public class CSV {
     private String filecontent;
     private Cabecalho cabecalho; // LINHAS
     private Registros registros; // LINHAS
+
+    //CLONE
+    public CSV(CSV csv) {
+        this.pathfile = csv.pathfile;
+        this.filecontent = csv.filecontent;
+        this.cabecalho = csv.cabecalho;
+        this.registros = csv.registros;
+    }
 
     public CSV(String pathfile) {
         this.pathfile = pathfile;
@@ -179,12 +189,25 @@ public class CSV {
         }
     }
 
+    public ArrayList<Registro> findRegisterByDateAndAfter(Date today, String fieldname, String format)
+            throws Exception {
+        ArrayList<Registro> rs;
+        int index = cabecalho.find(fieldname);
+        IntDate idata = new IntDate(today, "yyyyMMdd");
+        rs = this.registros.findByDateValueAndLower(idata, index);
+        if (rs != null) {
+            return rs;
+        } else {
+            throw new Exception("Não encontrado");
+        }
+    }
+
     /*
     ======================================================================
         CLASSES INTERNAS
     ======================================================================    
      */
-    private static class Registros {
+    private class Registros {
 
         private ArrayList<Registro> registros;
 
@@ -229,6 +252,25 @@ public class CSV {
             for (Registro registro : registros) {
                 if (Integer.valueOf(registro.get(field)).equals(value)) {
                     rs.add(registro);
+                }
+            }
+            return rs.isEmpty() ? null : rs;
+        }
+
+        private ArrayList<Registro> findByDateValueAndLower(IntDate idate, int field) {
+            ArrayList<Registro> rs = new ArrayList<Registro>();
+            for (Registro registro : registros) {
+                int i;
+                try {
+                    IntDate itdate = new IntDate(
+                            registro.get(field),
+                            "dd/MM/yyyy");
+                    i = itdate.toInt();
+                    if (i <= idate.toInt()) {
+                        rs.add(registro);
+                    }
+                } catch (ParseException ex) {
+
                 }
             }
             return rs.isEmpty() ? null : rs;
@@ -383,4 +425,47 @@ public class CSV {
         private String atributename;
     }
 
+    public class IntDate {
+
+        private Date date;
+        private int int_date;
+        private String s_format;
+
+        public IntDate() {
+            this.date = null;
+            this.int_date = 0;
+            this.s_format = null;
+        }
+
+        public IntDate(String s_date, String s_format) throws ParseException {
+            SimpleDateFormat f_in = new SimpleDateFormat(s_format);
+            this.date = f_in.parse(s_date);
+            this.recreate(new IntDate(date, "yyyyMMdd"));
+        }
+
+        private void recreate(IntDate original){
+            this.date = original.date;
+            this.int_date = original.int_date;
+            this.s_format = original.s_format;
+        }
+        
+        public IntDate(Date date, String format) {
+            this.date = date;
+            this.s_format = format;
+            SimpleDateFormat sdf = new SimpleDateFormat(this.s_format);
+            this.int_date = Integer.valueOf(sdf.format(date));
+        }
+
+        public int dateToInt(String s_date, String format_in, String format_out) throws ParseException {
+            SimpleDateFormat f_in = new SimpleDateFormat(format_in);
+            SimpleDateFormat f_out = new SimpleDateFormat(format_out);
+            Date d_date = f_in.parse(s_date);
+            return Integer.valueOf(f_out.format(d_date));
+        }
+
+        public int toInt() {
+            return this.int_date;
+        }
+
+    }
 }
