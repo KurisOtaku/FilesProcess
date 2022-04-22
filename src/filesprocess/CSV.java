@@ -12,8 +12,10 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * @author cristiano.rosa
@@ -90,6 +92,24 @@ public class CSV {
         rs = this.registros.getAll();
         if (rs != null) {
             return rs;
+        } else {
+            throw new Exception("Não encontrado");
+        }
+    }
+
+    /**
+     *
+     * @param fieldname
+     * @param buffer >fieldname< is in buffer @retur n
+     */
+    public CSV filterIn(String fieldname, TxtList list) throws Exception {
+        ArrayList<Registro> rs;
+        int index = cabecalho.find(fieldname);
+
+        rs = this.registros.findAllIn(list, index);
+        CSV resp = new CSV(this, rs);
+        if (rs != null) {
+            return resp;
         } else {
             throw new Exception("Não encontrado");
         }
@@ -217,6 +237,13 @@ public class CSV {
 
         public Registro get(int index) {
             return this.registros.get(index);
+        }
+
+        private ArrayList<Registro> findAllIn(TxtList list, int field) {
+            ArrayList<Registro> rs = new ArrayList<Registro>();
+            rs.addAll(this.getAll().stream().filter(linha -> list.contains(linha.get(field)))
+                    .collect(Collectors.toList()));
+            return rs.isEmpty() ? null : rs;
         }
 
         private Registros(ArrayList<Registro> registros) {
@@ -443,12 +470,12 @@ public class CSV {
             this.recreate(new IntDate(date, "yyyyMMdd"));
         }
 
-        private void recreate(IntDate original){
+        private void recreate(IntDate original) {
             this.date = original.date;
             this.int_date = original.int_date;
             this.s_format = original.s_format;
         }
-        
+
         public IntDate(Date date, String format) {
             this.date = date;
             this.s_format = format;
