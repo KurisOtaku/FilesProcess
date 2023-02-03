@@ -29,6 +29,16 @@ public class TxtList extends ArrayList {
         build();
     }
 
+    public TxtList(String pathfile, int convert_like_that) throws IOException {
+        super();
+        this.pathfile = pathfile;
+        this.content = openfile(this.pathfile, "iso-8859-1").replace("\r", "");
+        build();
+        for (Object it : this) {
+            it = new Integer((String) it);
+        }
+    }
+
     public TxtList() {
         super();
         this.pathfile = "";

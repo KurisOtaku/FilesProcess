@@ -111,6 +111,25 @@ public class CSV {
         if (rs != null) {
             return resp;
         } else {
+            System.out.println("fieldname: \"" + fieldname + "\"\n");
+            throw new Exception("Não encontrado");
+        }
+    }
+
+    /**
+     *
+     * @param fieldname
+     * @param buffer >fieldname< is in buffer @return @param rebuild default
+     * false
+     */
+    public CSV filterIn(String fieldname, TxtList list, boolean rebuild) throws Exception {
+        CSV resp = filterIn(fieldname, list);
+        if (resp.registros != null) {
+            if (rebuild) {
+                this.redoit(resp);
+            }
+            return resp;
+        } else {
             throw new Exception("Não encontrado");
         }
     }
@@ -138,6 +157,13 @@ public class CSV {
             throw new Exception("Valor \"" + fieldname + "\" Não encontrado");
         }
 
+    }
+
+    public void filter(String value, String fieldname, boolean rebuild) throws Exception {
+        CSV result = filter(value, fieldname);
+        if (rebuild) {
+            redoit(result);
+        }
     }
 
     public ArrayList<Registro> findRegisterBy(int value, String fieldname) throws Exception {
@@ -222,6 +248,80 @@ public class CSV {
         }
     }
 
+    /**
+     * Interna Left = this; Right = Another CSV; fields = Cabecalhos;
+     * https://www.alura.com.br/artigos/assets/power-bi-consultas/imagem-3.png
+     *
+     * @param fieldleft
+     * @param fieldright
+     * @param right
+     * @throws java.lang.Exception
+     */
+    public void innerjoin(String fieldleft, String fieldright, CSV right) throws Exception {
+        // REQUISITOS
+        ArrayList<Registro> rRight = right.getAll();
+        Cabecalho cright = right.cabecalho;
+
+        // CABEÇALHOS 
+        int indexLeft = this.cabecalho.find(fieldleft);
+        int indexRight = cright.find(fieldright);
+
+        ArrayList<Registro> result = new ArrayList<Registro>();
+       
+        
+        this.registros.registros.stream().anyMatch(itemL -> {
+            return rRight.contains(itemL);
+        });
+        result.addAll(this.registros.registros.stream().filter(itemL -> {
+
+            boolean resposta = false;
+            for (Registro registro : rRight) {
+                if (itemL.equals(registro.getField(fieldright))) {
+                    resposta = true;
+                }
+            }
+            return resposta;
+        }).collect(Collectors.toList()));
+
+        redoit(new CSV(this, result));
+
+    }
+
+    public int size() {
+        return this.registros.size();
+    }
+
+    private void redoit(CSV resp) {
+        this.cabecalho = resp.cabecalho;
+        this.registros = resp.registros;
+    }
+
+    public void convert(String field, String type) {
+        int index = this.cabecalho.find(field);
+        if (index > -1) {
+            switch (type.toLowerCase()) {
+                case "int":
+                    this.registros.convertToInt(index);
+                    break;
+                case "float":
+                    this.registros.convertToFloat(index);
+                    break;
+                default:
+                // STRING
+            }
+        } else {
+            System.out.println("Nada convertido");
+
+        }
+    }
+
+//    public void convertFieldTo(String field, Class class_to) {
+//        Object converted = class_to.cast(field);
+//        for (Registro registro : this.getAll()) {
+//            
+//        }
+//    }
+
     /*
     ======================================================================
         CLASSES INTERNAS
@@ -241,7 +341,21 @@ public class CSV {
 
         private ArrayList<Registro> findAllIn(TxtList list, int field) {
             ArrayList<Registro> rs = new ArrayList<Registro>();
-            rs.addAll(this.getAll().stream().filter(linha -> list.contains(linha.get(field)))
+            rs.addAll(this.getAll().stream().filter(linha -> {
+                boolean resposta = false;
+                try {
+                    for (Object object : list) {
+                        if (String.valueOf(object)
+                                .equals(String.valueOf(linha.get(field)))) {
+                            return true;
+                        };
+                    }
+                    //return list.contains(linha.get(field));
+                    return false;
+                } catch (Exception ex) {
+                    return list.contains("");
+                }
+            })
                     .collect(Collectors.toList()));
             return rs.isEmpty() ? null : rs;
         }
@@ -316,6 +430,34 @@ public class CSV {
             return this.registros;
         }
 
+        private int size() {
+            return this.registros.size();
+        }
+
+        private void convertToInt(int index) {
+            int value = 0;
+            for (Registro registro : registros) {
+                try {
+                    value = Integer.valueOf(registro.get(index).replace(".", ""));
+                } catch (Exception e) {
+
+                }
+                registro.fields.set(index, value);
+            }
+        }
+
+        private void convertToFloat(int index) {
+            float value = 0f;
+            for (Registro registro : registros) {
+                try {
+                    value = Float.valueOf(registro.get(index).replace(".", "").replace(",", "."));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                registro.fields.set(index, value);
+            }
+        }
+
     }
 
     public class Registro {
@@ -326,9 +468,14 @@ public class CSV {
         public Registro(String line, Cabecalho cabecalhos) {
             this.fields = new ArrayList<Object>();
             this.cabecalhos = cabecalhos;
-            String[] campos = line.split(";");
-            for (String field : campos) {
-                this.fields.add(field);
+            int size = cabecalhos.atributos.size();
+            String[] _campos = line.split(";");
+            for (int i = 0; i < size; i++) {
+                try {
+                    this.fields.add(_campos[i]);
+                } catch (Exception e) {
+                    this.fields.add("");
+                }
             }
         }
 
@@ -345,7 +492,7 @@ public class CSV {
         public String toString() {
             String retorno = "[\n";
             for (int x = 0; x < fields.size(); x++) {
-                retorno += this.cabecalhos.get(x) + ": \"" + arrumar((String) fields.get(x)) + "\"\n";
+                retorno += this.cabecalhos.get(x) + ": \"" + arrumar(String.valueOf(fields.get(x))) + "\"\n";
             }
             return retorno + "]";
         }
@@ -405,6 +552,7 @@ public class CSV {
 
     public String arrumar(String string) {
         return string.replaceAll("  ", "");
+
     }
 
     public class Cabecalho {
@@ -492,6 +640,10 @@ public class CSV {
 
         public int toInt() {
             return this.int_date;
+        }
+
+        public String toString() {
+            return "" + this.int_date;
         }
 
     }
