@@ -2,19 +2,20 @@
  * To change this license header, choose License Headers in Project Properties.
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
+ORIGINAL
  */
 package filesprocess;
 
-import br.zul.JTxtFile.JTxtFileFastReader;
+import JTxtFile.JTxtFileFastReader;
 import java.io.File;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -26,6 +27,7 @@ public class CSV {
     private String filecontent;
     private Cabecalho cabecalho; // LINHAS
     private Registros registros; // LINHAS
+    private String separator;
 
     //CLONE
     public CSV(CSV csv) {
@@ -36,6 +38,16 @@ public class CSV {
     }
 
     public CSV(String pathfile) {
+        this.pathfile = pathfile;
+        this.filecontent = openfile(pathfile, "iso-8859-1").replace("\r", "");
+        this.registros = new Registros();
+        builder();
+    }
+
+    public CSV(String pathfile, boolean otherseparator, String separator) {
+        if (otherseparator) {
+            this.separator = separator;
+        }
         this.pathfile = pathfile;
         this.filecontent = openfile(pathfile, "iso-8859-1").replace("\r", "");
         this.registros = new Registros();
@@ -71,7 +83,8 @@ public class CSV {
     private String openfile(String path_file_complet, String encode) {
         try {
             final File file = new File(path_file_complet);
-            String content = new JTxtFileFastReader(file).setCharset(Charset.forName(encode)).readAll();
+            String content = new JTxtFileFastReader(file).setCharset(
+                    Charset.forName(encode)).readAll();
             return content;
         } catch (Exception e) {
             return ">> Sem Texto <<";
@@ -202,11 +215,14 @@ public class CSV {
     }
 
     private void builder() {
+        if (this.separator == null) {
+            this.separator = ";";
+        }
         String[] lines = filecontent.replace("\r", "").split("\n");
-        this.cabecalho = new Cabecalho(lines[0]);
+        this.cabecalho = new Cabecalho(lines[0], this.separator);
         for (int i = 1; i < lines.length; i++) {
             try {
-                Registro r = new Registro(lines[i], this.cabecalho);
+                Registro r = new Registro(lines[i], this.cabecalho, this.separator);
                 registros.add(r);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -267,8 +283,7 @@ public class CSV {
         int indexRight = cright.find(fieldright);
 
         ArrayList<Registro> result = new ArrayList<Registro>();
-       
-        
+
         this.registros.registros.stream().anyMatch(itemL -> {
             return rRight.contains(itemL);
         });
@@ -296,6 +311,13 @@ public class CSV {
         this.registros = resp.registros;
     }
 
+    /**
+     * Converte um campo específico para o tipo desejado.
+     *
+     * @param field O nome do campo a ser convertido.
+     * @param type O tipo para o qual o campo será convertido. Pode ser "int",
+     * "float", ou "UTF_8".
+     */
     public void convert(String field, String type) {
         int index = this.cabecalho.find(field);
         if (index > -1) {
@@ -306,6 +328,8 @@ public class CSV {
                 case "float":
                     this.registros.convertToFloat(index);
                     break;
+                case "utf_8":
+                    this.registros.converterToUTF_8(index);
                 default:
                 // STRING
             }
@@ -438,9 +462,9 @@ public class CSV {
             int value = 0;
             for (Registro registro : registros) {
                 try {
-                    value = Integer.valueOf(registro.get(index).replace(".", ""));
+                    value = Integer.valueOf(registro.get(index).replace(" ", "").replace(".", ""));
                 } catch (Exception e) {
-
+                    e.printStackTrace();
                 }
                 registro.fields.set(index, value);
             }
@@ -458,6 +482,23 @@ public class CSV {
             }
         }
 
+        private void converterToUTF_8(int index) {
+            String value = "";
+            for (Registro registro : registros) {
+                try {
+                    byte[] bytes = registro
+                            .get(index)
+                            .getBytes(
+                                    StandardCharsets.ISO_8859_1);
+                    value = new String(bytes, StandardCharsets.UTF_8);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                registro.fields.set(index, value);
+            }
+
+        }
+
     }
 
     public class Registro {
@@ -465,24 +506,60 @@ public class CSV {
         private ArrayList<Object> fields;
         private Cabecalho cabecalhos;
 
-        public Registro(String line, Cabecalho cabecalhos) {
+        public Registro(String line, Cabecalho cabecalhos, String separator) {
             this.fields = new ArrayList<Object>();
             this.cabecalhos = cabecalhos;
             int size = cabecalhos.atributos.size();
-            String[] _campos = line.split(";");
-            for (int i = 0; i < size; i++) {
-                try {
-                    this.fields.add(_campos[i]);
-                } catch (Exception e) {
-                    this.fields.add("");
+
+            if (line.contains("\"")) {
+                List<String> asplit = splitWithQuote(line);
+
+                for (int i = 0; i < size; i++) {
+                    try {
+                        this.fields.add(asplit.get(i));
+                    } catch (Exception e) {
+                        this.fields.add("");
+                    }
+                }
+            } else {
+                String[] _campos = line.split(separator);
+                for (int i = 0; i < size; i++) {
+                    try {
+                        this.fields.add(_campos[i]);
+                    } catch (Exception e) {
+                        this.fields.add("");
+                    }
                 }
             }
+        }
+
+        private List<String> splitWithQuote(String text) {
+            ArrayList<String> source = new ArrayList<>(Arrays.asList(text.split(",")));
+            ArrayList<String> dest = new ArrayList<String>();
+            String working = "";
+            while (!source.isEmpty()) {
+                working += source.remove(0);
+                long count = working.chars().filter(ch -> ch == '"').count();
+                if (count % 2 == 0) {
+                    dest.add(working);
+                    working = "";
+                } else {
+                    working += ",";
+                }
+            }
+            return dest;
         }
 
         private String get(int field) {
             return String.valueOf(this.fields.get(field));
         }
 
+        public boolean set(String field, String value){
+            int index = this.cabecalhos.find(field);
+            this.fields.set(index, value);
+            return true;
+        }
+        
         public String getField(String field) {
             int index = this.cabecalhos.find(field);
             return get(index);
@@ -559,9 +636,9 @@ public class CSV {
 
         private ArrayList<String> atributos;
 
-        public Cabecalho(String firstline) {
+        public Cabecalho(String firstline, String separator) {
             this.atributos = new ArrayList<String>();
-            String[] fields = firstline.split(";");
+            String[] fields = firstline.split(separator);
             for (String field : fields) {
                 this.atributos.add(arrumar(field));
             }

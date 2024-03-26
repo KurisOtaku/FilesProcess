@@ -5,7 +5,7 @@
  */
 package filesprocess;
 
-import br.zul.JTxtFile.JTxtFileFastReader;
+import JTxtFile.JTxtFileFastReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
