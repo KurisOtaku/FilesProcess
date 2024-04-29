@@ -37,6 +37,13 @@ public class CSV {
         this.registros = csv.registros;
     }
 
+    public CSV() {
+        this.pathfile = "";
+        this.filecontent = "";
+        this.cabecalho = new Cabecalho("", ";");
+        this.registros = new Registros();
+    }
+
     public CSV(String pathfile) {
         this.pathfile = pathfile;
         this.filecontent = openfile(pathfile, "iso-8859-1").replace("\r", "");
@@ -96,6 +103,46 @@ public class CSV {
         METODOS PUBLICOS
     ======================================================================    
      */
+    public boolean setPathfile(String pathfile) {
+        if (this.pathfile != null) {
+            this.pathfile = pathfile;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean setFilecontent(String filecontent) {
+        if (this.filecontent != null) {
+            this.filecontent = filecontent;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean setCabecalho(Cabecalho cabecalho) {
+        if (this.cabecalho.atributos.size() != 0) {
+            this.cabecalho = cabecalho;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean setRegistros(Registros registros) {
+        if (this.registros.registros.size() != 0) {
+            this.registros = registros;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean setSeparator(String separator) {
+        if (this.separator != null) {
+            this.separator = separator;
+            return true;
+        }
+        return false;
+    }
+
     public String getFirstOf(String field) {
         return this.registros.get(0).getValueOf(field);
     }
@@ -200,6 +247,20 @@ public class CSV {
         } else {
             throw new Exception("Não encontrado");
         }
+    }
+
+    public void constuctThis() throws Exception {
+        if (this.registros.registros.size() > 0
+                || this.cabecalho.atributos.size() > 0) {
+            throw new Exception("CSV já foi contruído a primeira vez!");
+        }
+        if (this.filecontent == null){
+            throw new Exception("CSV não pôde ser gerado. FileContent vazio");
+        }
+        if (this.pathfile == null){
+            throw new Exception("CSV não pôde ser gerado. pathfile vazio");
+        }
+        this.builder();
     }
 
     /*
@@ -554,12 +615,12 @@ public class CSV {
             return String.valueOf(this.fields.get(field));
         }
 
-        public boolean set(String field, String value){
+        public boolean set(String field, String value) {
             int index = this.cabecalhos.find(field);
             this.fields.set(index, value);
             return true;
         }
-        
+
         public String getField(String field) {
             int index = this.cabecalhos.find(field);
             return get(index);
