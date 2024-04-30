@@ -28,6 +28,7 @@ public class CSV {
     private Cabecalho cabecalho; // LINHAS
     private Registros registros; // LINHAS
     private String separator;
+    private boolean isContent;
 
     //CLONE
     public CSV(CSV csv) {
@@ -35,13 +36,15 @@ public class CSV {
         this.filecontent = csv.filecontent;
         this.cabecalho = csv.cabecalho;
         this.registros = csv.registros;
+        this.isContent = !this.filecontent.equals(">> Sem Texto <<");
     }
 
     public CSV() {
         this.pathfile = "";
-        this.filecontent = "";
+        this.filecontent = ">> Sem Texto <<";
         this.cabecalho = new Cabecalho("", ";");
         this.registros = new Registros();
+        this.isContent = false;
     }
 
     public CSV(String pathfile) {
@@ -49,6 +52,7 @@ public class CSV {
         this.filecontent = openfile(pathfile, "iso-8859-1").replace("\r", "");
         this.registros = new Registros();
         builder();
+        this.isContent = !this.filecontent.equals(">> Sem Texto <<");
     }
 
     public CSV(String pathfile, boolean otherseparator, String separator) {
@@ -59,13 +63,15 @@ public class CSV {
         this.filecontent = openfile(pathfile, "iso-8859-1").replace("\r", "");
         this.registros = new Registros();
         builder();
+        this.isContent = !this.filecontent.equals(">> Sem Texto <<");
     }
 
     public CSV(String pathfile, String encode) {
         this.pathfile = pathfile;
         this.filecontent = openfile(pathfile, encode).replace("\r", "");
         this.registros = new Registros();
-        builder();
+        builder();        
+        this.isContent = !this.filecontent.equals(">> Sem Texto <<");
     }
 
     public ArrayList<String> getCabecalho() {
@@ -103,6 +109,11 @@ public class CSV {
         METODOS PUBLICOS
     ======================================================================    
      */
+    public boolean getIsEmpty(){
+        return !this.isContent;
+    }
+    
+    
     public boolean setPathfile(String pathfile) {
         if (this.pathfile != null) {
             this.pathfile = pathfile;
@@ -251,13 +262,13 @@ public class CSV {
 
     public void constuctThis() throws Exception {
         if (this.registros.registros.size() > 0
-                || this.cabecalho.atributos.size() > 0) {
+                && this.cabecalho.atributos.size() > 0) {
             throw new Exception("CSV já foi contruído a primeira vez!");
         }
-        if (this.filecontent == null){
+        if (this.filecontent == null) {
             throw new Exception("CSV não pôde ser gerado. FileContent vazio");
         }
-        if (this.pathfile == null){
+        if (this.pathfile == null) {
             throw new Exception("CSV não pôde ser gerado. pathfile vazio");
         }
         this.builder();
