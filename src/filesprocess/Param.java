@@ -182,10 +182,10 @@ public class Param {
         }
     }
 
-    private boolean savefile(String pathfile) throws IOException {
+    public boolean savefile(String pathfile) throws IOException {
         File f = new File(pathfile);
         if (!f.exists()) {
-                f.createNewFile();
+            f.createNewFile();
         }
         String[] linhas = content.split("\n");
         boolean resultado = false;
@@ -200,6 +200,25 @@ public class Param {
             d.printStackTrace();
         }
         return resultado;
+    }
+
+    public Map<String, String> getMap() {
+        return this.params;
+    }
+
+    public String getPathfile() {
+        return this.pathfile;
+    }
+
+    public void uptdateContent() {
+        String content = "#formato;CSV\n"
+                + "#ignorar se linha começa com #\n";
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            Object key = entry.getKey();
+            Object val = entry.getValue();
+            content += key + ";" + val + ";\n";
+        }
+        this.content = content;
     }
 
 }
