@@ -34,6 +34,14 @@ public class Param {
         verify();
     }
 
+    public Param(String pathfile) throws IOException {
+        this.creating = true;
+        params = new HashMap<String, String>();
+        this.pathfile = pathfile;
+        verify();
+        build();
+    }
+
     private boolean isReady() {
         if (pathfile == null || pathfile.equals("")) {
             return false;
@@ -58,38 +66,37 @@ public class Param {
     }
 
     public boolean verify() {
-        String me = "";
+        this.message = "";
         if (pathfile == null || pathfile.equals("")) {
-            me += "Falta pathfile\n";
+            this.message += "Falta pathfile\n";
         } else {
             if (pathfile.equals("")) {
-                me += "Falta content\n";
+                this.message += "Falta content\n";
             }
         }
         if (content == null) {
-            me += "Falta content\n";
+            this.message += "Falta content\n";
         } else {
             if (content.equals("")) {
-                me += "Falta content\n";
+                this.message += "Falta content\n";
             } else {
                 if (content.equals(">> Sem Texto <<")) {
-                    me += "Falta content\n";
+                    this.message += "Falta content\n";
                 }
             }
         }
 
         if (params.isEmpty()) {
-            me += "Falta rodar build()";
+            this.message += "Falta rodar build()";
         }
-        if (me.equals("")) {
+        if (this.message.equals("")) {
             // Tudo Ok
             this.isOk = true;
-            me = "OK";
+            this.message = "OK";
             return true;
         } else {
-            System.out.println("Param diz: \n" + me);
+            System.out.println("Param diz: \n" + this.message);
         }
-        this.message = me;
         return false;
     }
 
@@ -103,11 +110,27 @@ public class Param {
                 }
             }
         } else {
-            System.out.println("Não foi possível criar");
+            System.out.println("Nao esta pronto");
+            if (!trataMessages()) {
+               this.verify();
+                build();
+               this.verify();
+            }
         }
         if (creating) {
             savefile(this.pathfile);
         }
+    }
+
+    private boolean trataMessages() throws IOException {
+        if (message.contains("Falta content")) {
+            this.content = openfile(pathfile, "iso-8859-1");
+            verify();
+        }
+        if (message.contains("Falta rodar build()")) {
+            return false;
+        }
+        return true;
     }
 
     public void setPathfile(String pathfile) {
@@ -118,13 +141,6 @@ public class Param {
     public void setContent(String content) {
         this.content = content;
         verify();
-    }
-
-    public Param(String pathfile) throws IOException {
-        this.creating = false;
-        params = new HashMap<String, String>();
-        verify();
-        build();
     }
 
     public boolean getisOK() {

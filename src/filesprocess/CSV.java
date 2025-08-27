@@ -14,6 +14,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -47,9 +48,17 @@ public class CSV {
         this.isContent = false;
     }
 
+    public CSV(String pathfile, int ignorefirstNllines) {
+        this.pathfile = pathfile;
+        this.filecontent = openfile(pathfile, "iso-8859-1", ignorefirstNllines).replace("\r", "");
+        this.registros = new Registros();
+        builder();
+        this.isContent = !this.filecontent.equals(">> Sem Texto <<");
+    }
+
     public CSV(String pathfile) {
         this.pathfile = pathfile;
-        this.filecontent = openfile(pathfile, "iso-8859-1").replace("\r", "");
+        this.filecontent = openfile(pathfile, "iso-8859-1", 0).replace("\r", "");
         this.registros = new Registros();
         builder();
         this.isContent = !this.filecontent.equals(">> Sem Texto <<");
@@ -60,7 +69,7 @@ public class CSV {
             this.separator = separator;
         }
         this.pathfile = pathfile;
-        this.filecontent = openfile(pathfile, "iso-8859-1").replace("\r", "");
+        this.filecontent = openfile(pathfile, "iso-8859-1", 0).replace("\r", "");
         this.registros = new Registros();
         builder();
         this.isContent = !this.filecontent.equals(">> Sem Texto <<");
@@ -68,14 +77,18 @@ public class CSV {
 
     public CSV(String pathfile, String encode) {
         this.pathfile = pathfile;
-        this.filecontent = openfile(pathfile, encode).replace("\r", "");
+        this.filecontent = openfile(pathfile, encode, 0).replace("\r", "");
         this.registros = new Registros();
-        builder();        
+        builder();
         this.isContent = !this.filecontent.equals(">> Sem Texto <<");
     }
 
     public ArrayList<String> getCabecalho() {
         return (ArrayList<String>) cabecalho.atributos.clone();
+    }
+
+    public Cabecalho getCabecalhoObj() {
+        return this.cabecalho;
     }
 
     public CSV(String pathfile, String filecontent, Cabecalho cabecalho,
@@ -93,15 +106,33 @@ public class CSV {
         this.registros = new Registros(rs);
     }
 
-    private String openfile(String path_file_complet, String encode) {
+    private String openfile(String path_file_complet, String encode, int ignoreFirstNLines) {
+        String content = "";
         try {
             final File file = new File(path_file_complet);
-            String content = new JTxtFileFastReader(file).setCharset(
+            content = new JTxtFileFastReader(file).setCharset(
                     Charset.forName(encode)).readAll();
-            return content;
         } catch (Exception e) {
-            return ">> Sem Texto <<";
+            content = ">> Sem Texto <<";
         }
+        if (ignoreFirstNLines == 0) {
+            return content;
+        } else {
+            return removeFirstLines(content, ignoreFirstNLines);
+        }
+
+    }
+
+    private String removeFirstLines(String content, int ignoreFirstNLines) {
+        String newcontent = "";
+        String[] lines = content.split("\n");
+        for (int i = ignoreFirstNLines; i < lines.length; i++) {
+            newcontent += lines[i];
+            if (i < lines.length - 1) {
+                newcontent += "\n";
+            }
+        }
+        return newcontent;
     }
 
     /*
@@ -109,11 +140,14 @@ public class CSV {
         METODOS PUBLICOS
     ======================================================================    
      */
-    public boolean getIsEmpty(){
+    public boolean getIsEmpty() {
         return !this.isContent;
     }
-    
-    
+
+    public String getPathfile() {
+        return pathfile;
+    }
+
     public boolean setPathfile(String pathfile) {
         if (this.pathfile != null) {
             this.pathfile = pathfile;
@@ -146,6 +180,61 @@ public class CSV {
         return false;
     }
 
+    /**
+     * Ordena os dados com base no campo especificado.
+     *
+     * @param field o nome do campo pelo qual os dados devem ser ordenados
+     * @param order o tipo de ordenação: 0 para ordem crescente, 1 para ordem
+     * decrescente
+     *
+     */
+    public void sortBy(String field, int order) {
+        Comparator<Registro> comparator = Comparator.comparingInt(p -> p.getIntField(field));
+
+        if (order == 1) {
+            comparator = comparator.reversed();
+        } else if (order != 0) {
+            throw new IllegalArgumentException("Ordem deve ser 0 (crescente) ou 1 (decrescente)");
+        }
+        this.registros.registros.sort(comparator);
+    }
+
+    public void sort(Comparator<Registro> comparator) {
+        this.registros.registros.sort(comparator);
+    }
+
+    /*
+    -----------------------------------------------------
+       INSERT COLUMN
+    inicio
+    -----------------------------------------------------    
+     */
+    @FunctionalInterface
+    public interface DefaultValueProvider {
+
+        String get(Registro registro);
+    }
+
+    public boolean insertColumn(String column_name, DefaultValueProvider defaultValueProvider) {
+        try {
+            this.cabecalho.atributos.add(column_name);
+            for (Registro registro : this.registros.registros) {
+                registro.cabecalhos = this.cabecalho;
+                String defaultValue = defaultValueProvider.get(registro);
+                registro.fields.add(defaultValue);
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return true;
+    }
+
+    /*
+    -----------------------------------------------------
+       INSERT COLUMN
+    fim
+    -----------------------------------------------------    
+     */
     public boolean setSeparator(String separator) {
         if (this.separator != null) {
             this.separator = separator;
@@ -438,7 +527,6 @@ public class CSV {
         private ArrayList<Registro> findAllIn(TxtList list, int field) {
             ArrayList<Registro> rs = new ArrayList<Registro>();
             rs.addAll(this.getAll().stream().filter(linha -> {
-                boolean resposta = false;
                 try {
                     for (Object object : list) {
                         if (String.valueOf(object)
@@ -534,7 +622,12 @@ public class CSV {
             int value = 0;
             for (Registro registro : registros) {
                 try {
-                    value = Integer.valueOf(registro.get(index).replace(" ", "").replace(".", ""));
+                    String s_value = registro.get(index);
+                    if (!s_value.equals("")) {
+                        value = Integer.valueOf(s_value.replace(" ", "").replace(".", ""));
+                    } else {
+                        value = 0;
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -635,6 +728,18 @@ public class CSV {
         public String getField(String field) {
             int index = this.cabecalhos.find(field);
             return get(index);
+        }
+
+        public String toCSVtxt() {
+            String retorno = "";
+            String header = "";
+            for (int x = 0; x < fields.size(); x++) {
+                header += this.cabecalhos.get(x) + ";";
+            }
+            for (int x = 0; x < fields.size(); x++) {
+                retorno += arrumar(String.valueOf(fields.get(x))) + ";";
+            }
+            return header + "\n" + retorno;
         }
 
         @Override
