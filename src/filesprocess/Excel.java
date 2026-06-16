@@ -41,10 +41,10 @@ public class Excel {
     }
 
     public static void main(String[] args) throws Exception {
-        String path = "K:\\Relatórios de Uso comum\\Relatórios SPO 2025\\Tasks\\2025-08\\Compra.xlsx";
+        String path = "K:\\relatórios de Uso comum\\Relatórios SPO 2026\\Tasks\\2026-04.xlsx";
         Excel ex = new Excel(path);
-        ex = ex.filtrarPorColuna("Mês/ Ano", "Ago/25")
-                .filtrarPorColuna("Pdv", "10179") //   .filtrarPorColuna("Data Visita", "13/08/2025")
+        ex = ex.filtrarPorColuna("Mês/ Ano", "Abr/26")
+                .filtrarPorColuna("Pdv", "23814") //   .filtrarPorColuna("Data Visita", "13/08/2025")
                 ;
         ex.convert("Data Visita", val -> {
             if (val instanceof Double) {
@@ -52,19 +52,18 @@ public class Excel {
             }
             return val;
         });
-        ex = ex.filtrarPorColuna("Data Visita", "13/08/2025")
-                .filtrarPorColuna("Mensal/ Diária", "PRODUCT_COVERAGE");
-        ex.convert("Mensal/ Diária", val -> {
-            return "Diária";
-        });
+        // ex = ex.filtrarPorColuna("Data Visita", "23/04/2026");
+//        ex.convert("Mensal/ Diária", val -> {
+//            return "Diária";
+//        });
         String resp = "";
 
         resp += "Visita: " + ex.getLinha(0).get("Data Visita") + "\n";
+        resp += "Tarefa:\n";
         for (int i = 0; i < ex.rows - 1; i++) {
             Map<String, Object> linhe = ex.getLinha(i);
             String task_text = (String) linhe.get("Texto da Tarefa");
-            String task_type = (String) linhe.get("Mensal/ Diária");;
-            resp += "Tarefa: \"" + task_text + "\"\n";
+            resp += "\""+task_text + "\"\n";
         }
         System.out.println(resp);
 
@@ -99,7 +98,7 @@ public class Excel {
             }
             sb.append("\n");
         }
-*/        
+         */
         //this.textCSV = sb.toString();
     }
 
@@ -192,8 +191,6 @@ public class Excel {
         // Retorna novo Excel baseado no workbook filtrado
         return new Excel(novoWorkbook);
     }
-        
-    
 
     public Map<String, Object> buscarPrimeiraLinha() {
         // Lê os nomes das colunas
@@ -350,60 +347,59 @@ public class Excel {
         return this.rows;
     }
 
-    
     public Excel ordenarPorColuna(String coluna, Comparator<Object> comparador) throws Exception {
-    // Lê os nomes das colunas
-    List<String> nomesColunas = new ArrayList<>();
-    for (int i = 0; i < cols; i++) {
-        Object valor = cells.get(0, i).getValue();
-        nomesColunas.add(valor != null ? valor.toString() : "");
-    }
-
-    // Encontra índice da coluna
-    int colunaIndex = nomesColunas.indexOf(coluna);
-    if (colunaIndex == -1) {
-        throw new IllegalArgumentException("Coluna não encontrada: " + coluna);
-    }
-
-    // Lista para armazenar linhas (exceto cabeçalho)
-    List<List<Object>> linhas = new ArrayList<>();
-
-    for (int i = 1; i < rows; i++) {
-        List<Object> linha = new ArrayList<>();
-        for (int j = 0; j < cols; j++) {
-            linha.add(cells.get(i, j).getValue());
+        // Lê os nomes das colunas
+        List<String> nomesColunas = new ArrayList<>();
+        for (int i = 0; i < cols; i++) {
+            Object valor = cells.get(0, i).getValue();
+            nomesColunas.add(valor != null ? valor.toString() : "");
         }
-        linhas.add(linha);
-    }
 
-    // Ordena usando o comparador fornecido
-    linhas.sort((l1, l2) -> {
-        Object v1 = l1.get(colunaIndex);
-        Object v2 = l2.get(colunaIndex);
-        return comparador.compare(v1, v2);
-    });
+        // Encontra índice da coluna
+        int colunaIndex = nomesColunas.indexOf(coluna);
+        if (colunaIndex == -1) {
+            throw new IllegalArgumentException("Coluna não encontrada: " + coluna);
+        }
 
-    // Criar novo workbook
-    Workbook novoWorkbook = new Workbook();
-    Worksheet novaSheet = novoWorkbook.getWorksheets().get(0);
-    Cells novasCells = novaSheet.getCells();
+        // Lista para armazenar linhas (exceto cabeçalho)
+        List<List<Object>> linhas = new ArrayList<>();
 
-    int linhaNova = 0;
+        for (int i = 1; i < rows; i++) {
+            List<Object> linha = new ArrayList<>();
+            for (int j = 0; j < cols; j++) {
+                linha.add(cells.get(i, j).getValue());
+            }
+            linhas.add(linha);
+        }
 
-    // Copia cabeçalho
-    for (int j = 0; j < cols; j++) {
-        novasCells.get(linhaNova, j).putValue(nomesColunas.get(j));
-    }
-    linhaNova++;
+        // Ordena usando o comparador fornecido
+        linhas.sort((l1, l2) -> {
+            Object v1 = l1.get(colunaIndex);
+            Object v2 = l2.get(colunaIndex);
+            return comparador.compare(v1, v2);
+        });
 
-    // Copia linhas ordenadas
-    for (List<Object> linha : linhas) {
+        // Criar novo workbook
+        Workbook novoWorkbook = new Workbook();
+        Worksheet novaSheet = novoWorkbook.getWorksheets().get(0);
+        Cells novasCells = novaSheet.getCells();
+
+        int linhaNova = 0;
+
+        // Copia cabeçalho
         for (int j = 0; j < cols; j++) {
-            novasCells.get(linhaNova, j).putValue(linha.get(j));
+            novasCells.get(linhaNova, j).putValue(nomesColunas.get(j));
         }
         linhaNova++;
-    }
 
-    return new Excel(novoWorkbook);
-}
+        // Copia linhas ordenadas
+        for (List<Object> linha : linhas) {
+            for (int j = 0; j < cols; j++) {
+                novasCells.get(linhaNova, j).putValue(linha.get(j));
+            }
+            linhaNova++;
+        }
+
+        return new Excel(novoWorkbook);
+    }
 }

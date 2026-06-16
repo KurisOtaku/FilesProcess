@@ -7,16 +7,15 @@ ORIGINAL
 package filesprocess;
 
 import JTxtFile.JTxtFileFastReader;
+import Objects.IntDate;
+import Objects.Registro;
+import Objects.Registros;
 import java.io.File;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -27,9 +26,10 @@ public class CSV {
     private String pathfile;
     private String filecontent;
     private Cabecalho cabecalho; // LINHAS
-    private Registros registros; // LINHAS
+    private Objects.Registros registros; // LINHAS
     private String separator;
     private boolean isContent;
+    private String dateModification;
 
     //CLONE
     public CSV(CSV csv) {
@@ -37,6 +37,7 @@ public class CSV {
         this.filecontent = csv.filecontent;
         this.cabecalho = csv.cabecalho;
         this.registros = csv.registros;
+        this.dateModification = csv.dateModification;
         this.isContent = !this.filecontent.equals(">> Sem Texto <<");
     }
 
@@ -44,14 +45,16 @@ public class CSV {
         this.pathfile = "";
         this.filecontent = ">> Sem Texto <<";
         this.cabecalho = new Cabecalho("", ";");
-        this.registros = new Registros();
+        this.registros = new Objects.Registros();
         this.isContent = false;
+        this.dateModification = "";
     }
 
     public CSV(String pathfile, int ignorefirstNllines) {
         this.pathfile = pathfile;
         this.filecontent = openfile(pathfile, "iso-8859-1", ignorefirstNllines).replace("\r", "");
-        this.registros = new Registros();
+        this.dateModification = getDateModifyFile(pathfile, "yyyy-MM-dd HH:mm");
+        this.registros = new Objects.Registros();
         builder();
         this.isContent = !this.filecontent.equals(">> Sem Texto <<");
     }
@@ -59,7 +62,8 @@ public class CSV {
     public CSV(String pathfile) {
         this.pathfile = pathfile;
         this.filecontent = openfile(pathfile, "iso-8859-1", 0).replace("\r", "");
-        this.registros = new Registros();
+        this.dateModification = getDateModifyFile(pathfile, "yyyy-MM-dd HH:mm");
+        this.registros = new Objects.Registros();
         builder();
         this.isContent = !this.filecontent.equals(">> Sem Texto <<");
     }
@@ -70,7 +74,8 @@ public class CSV {
         }
         this.pathfile = pathfile;
         this.filecontent = openfile(pathfile, "iso-8859-1", 0).replace("\r", "");
-        this.registros = new Registros();
+        this.dateModification = getDateModifyFile(pathfile, "yyyy-MM-dd HH:mm");
+        this.registros = new Objects.Registros();
         builder();
         this.isContent = !this.filecontent.equals(">> Sem Texto <<");
     }
@@ -78,7 +83,8 @@ public class CSV {
     public CSV(String pathfile, String encode) {
         this.pathfile = pathfile;
         this.filecontent = openfile(pathfile, encode, 0).replace("\r", "");
-        this.registros = new Registros();
+        this.dateModification = getDateModifyFile(pathfile, "yyyy-MM-dd HH:mm");
+        this.registros = new Objects.Registros();
         builder();
         this.isContent = !this.filecontent.equals(">> Sem Texto <<");
     }
@@ -96,14 +102,14 @@ public class CSV {
         this.pathfile = pathfile;
         this.filecontent = filecontent;
         this.cabecalho = cabecalho;
-        this.registros = new Registros(registros);
+        this.registros = new Objects.Registros(registros);
     }
 
     private CSV(CSV csv, ArrayList<Registro> rs) {
         this.pathfile = csv.pathfile;
         this.filecontent = csv.filecontent;
         this.cabecalho = csv.cabecalho;
-        this.registros = new Registros(rs);
+        this.registros = new Objects.Registros(rs);
     }
 
     private String openfile(String path_file_complet, String encode, int ignoreFirstNLines) {
@@ -120,7 +126,21 @@ public class CSV {
         } else {
             return removeFirstLines(content, ignoreFirstNLines);
         }
+    }
 
+    private String getDateModifyFile(String path_file_complet, String format) {
+        String content = "";
+        Date dt;
+        SimpleDateFormat formatter = new SimpleDateFormat(format);
+
+        try {
+            final File file = new File(path_file_complet);
+            dt = new Date(file.lastModified());
+        } catch (Exception e) {
+            dt = new Date();
+        }
+        content = formatter.format(dt);
+        return content;
     }
 
     private String removeFirstLines(String content, int ignoreFirstNLines) {
@@ -140,6 +160,19 @@ public class CSV {
         METODOS PUBLICOS
     ======================================================================    
      */
+    public String getContentUpdated() {
+        String retorno = "";
+        for (String atributo : cabecalho.atributos) {
+            retorno += atributo + ";";
+        }
+        retorno += "\n";
+
+        for (Registro registro : registros.registros) {
+            retorno += registro.getLineContent() + "\n";
+        }
+        return retorno;
+    }
+
     public boolean getIsEmpty() {
         return !this.isContent;
     }
@@ -172,12 +205,16 @@ public class CSV {
         return false;
     }
 
-    public boolean setRegistros(Registros registros) {
+    public boolean setRegistros(Objects.Registros registros) {
         if (this.registros.registros.size() != 0) {
             this.registros = registros;
             return true;
         }
         return false;
+    }
+
+    public String getDateModification() {
+        return dateModification;
     }
 
     /**
@@ -203,6 +240,12 @@ public class CSV {
         this.registros.registros.sort(comparator);
     }
 
+    public void printCabecalhos() {
+        for (String atributo : this.cabecalho.atributos) {
+            System.out.println('"' + atributo + '"');
+        }
+    }
+
     /*
     -----------------------------------------------------
        INSERT COLUMN
@@ -218,10 +261,10 @@ public class CSV {
     public boolean insertColumn(String column_name, DefaultValueProvider defaultValueProvider) {
         try {
             this.cabecalho.atributos.add(column_name);
-            for (Registro registro : this.registros.registros) {
+            for (Registro registro : this.registros.getRegistros()) {
                 registro.cabecalhos = this.cabecalho;
                 String defaultValue = defaultValueProvider.get(registro);
-                registro.fields.add(defaultValue);
+                registro.getFields().add(defaultValue);
             }
         } catch (Exception e) {
             return false;
@@ -427,7 +470,6 @@ public class CSV {
 
     /**
      * Interna Left = this; Right = Another CSV; fields = Cabecalhos;
-     * https://www.alura.com.br/artigos/assets/power-bi-consultas/imagem-3.png
      *
      * @param fieldleft
      * @param fieldright
@@ -512,285 +554,6 @@ public class CSV {
         CLASSES INTERNAS
     ======================================================================    
      */
-    private class Registros {
-
-        private ArrayList<Registro> registros;
-
-        public Registros() {
-            this.registros = new ArrayList<Registro>();
-        }
-
-        public Registro get(int index) {
-            return this.registros.get(index);
-        }
-
-        private ArrayList<Registro> findAllIn(TxtList list, int field) {
-            ArrayList<Registro> rs = new ArrayList<Registro>();
-            rs.addAll(this.getAll().stream().filter(linha -> {
-                try {
-                    for (Object object : list) {
-                        if (String.valueOf(object)
-                                .equals(String.valueOf(linha.get(field)))) {
-                            return true;
-                        };
-                    }
-                    //return list.contains(linha.get(field));
-                    return false;
-                } catch (Exception ex) {
-                    return list.contains("");
-                }
-            })
-                    .collect(Collectors.toList()));
-            return rs.isEmpty() ? null : rs;
-        }
-
-        private Registros(ArrayList<Registro> registros) {
-            this.registros = registros;
-        }
-
-        private void add(Registro r) {
-            registros.add(r);
-        }
-
-        private ArrayList<Registro> find(String value, int field) {
-            ArrayList<Registro> rs = new ArrayList<Registro>();
-            for (Registro registro : registros) {
-                if (registro.get(field).equals(value)) {
-                    rs.add(registro);
-                }
-            }
-            return rs.isEmpty() ? null : rs;
-        }
-
-        private ArrayList<Registro> findContains(String value, int field) {
-            ArrayList<Registro> rs = new ArrayList<Registro>();
-            for (Registro registro : registros) {
-                if (registro.get(field).contains(value)) {
-                    rs.add(registro);
-                }
-            }
-            return rs.isEmpty() ? null : rs;
-        }
-
-        private ArrayList<Registro> findByIntValue(int value, int field) {
-            ArrayList<Registro> rs = new ArrayList<Registro>();
-            for (Registro registro : registros) {
-                if (Integer.valueOf(registro.get(field)).equals(value)) {
-                    rs.add(registro);
-                }
-            }
-            return rs.isEmpty() ? null : rs;
-        }
-
-        private ArrayList<Registro> findByDateValueAndLower(IntDate idate, int field) {
-            ArrayList<Registro> rs = new ArrayList<Registro>();
-            for (Registro registro : registros) {
-                int i;
-                try {
-                    IntDate itdate = new IntDate(
-                            registro.get(field),
-                            "dd/MM/yyyy");
-                    i = itdate.toInt();
-                    if (i <= idate.toInt()) {
-                        rs.add(registro);
-                    }
-                } catch (ParseException ex) {
-
-                }
-            }
-            return rs.isEmpty() ? null : rs;
-        }
-
-        private Registro find(int value, int field) {
-            for (Registro registro : registros) {
-                if (registro.get(field).equals(value)) {
-                    return registro;
-                }
-            }
-            return null;
-        }
-
-        private ArrayList<Registro> getAll() {
-            return this.registros;
-        }
-
-        private int size() {
-            return this.registros.size();
-        }
-
-        private void convertToInt(int index) {
-            int value = 0;
-            for (Registro registro : registros) {
-                try {
-                    String s_value = registro.get(index);
-                    if (!s_value.equals("")) {
-                        value = Integer.valueOf(s_value.replace(" ", "").replace(".", ""));
-                    } else {
-                        value = 0;
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                registro.fields.set(index, value);
-            }
-        }
-
-        private void convertToFloat(int index) {
-            float value = 0f;
-            for (Registro registro : registros) {
-                try {
-                    value = Float.valueOf(registro.get(index).replace(".", "").replace(",", "."));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                registro.fields.set(index, value);
-            }
-        }
-
-        private void converterToUTF_8(int index) {
-            String value = "";
-            for (Registro registro : registros) {
-                try {
-                    byte[] bytes = registro
-                            .get(index)
-                            .getBytes(
-                                    StandardCharsets.ISO_8859_1);
-                    value = new String(bytes, StandardCharsets.UTF_8);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                registro.fields.set(index, value);
-            }
-
-        }
-
-    }
-
-    public class Registro {
-
-        private ArrayList<Object> fields;
-        private Cabecalho cabecalhos;
-
-        public Registro(String line, Cabecalho cabecalhos, String separator) {
-            this.fields = new ArrayList<Object>();
-            this.cabecalhos = cabecalhos;
-            int size = cabecalhos.atributos.size();
-
-            if (line.contains("\"")) {
-                List<String> asplit = splitWithQuote(line);
-
-                for (int i = 0; i < size; i++) {
-                    try {
-                        this.fields.add(asplit.get(i));
-                    } catch (Exception e) {
-                        this.fields.add("");
-                    }
-                }
-            } else {
-                String[] _campos = line.split(separator);
-                for (int i = 0; i < size; i++) {
-                    try {
-                        this.fields.add(_campos[i]);
-                    } catch (Exception e) {
-                        this.fields.add("");
-                    }
-                }
-            }
-        }
-
-        private List<String> splitWithQuote(String text) {
-            ArrayList<String> source = new ArrayList<>(Arrays.asList(text.split(",")));
-            ArrayList<String> dest = new ArrayList<String>();
-            String working = "";
-            while (!source.isEmpty()) {
-                working += source.remove(0);
-                long count = working.chars().filter(ch -> ch == '"').count();
-                if (count % 2 == 0) {
-                    dest.add(working);
-                    working = "";
-                } else {
-                    working += ",";
-                }
-            }
-            return dest;
-        }
-
-        private String get(int field) {
-            return String.valueOf(this.fields.get(field));
-        }
-
-        public boolean set(String field, String value) {
-            int index = this.cabecalhos.find(field);
-            this.fields.set(index, value);
-            return true;
-        }
-
-        public String getField(String field) {
-            int index = this.cabecalhos.find(field);
-            return get(index);
-        }
-
-        public String toCSVtxt() {
-            String retorno = "";
-            String header = "";
-            for (int x = 0; x < fields.size(); x++) {
-                header += this.cabecalhos.get(x) + ";";
-            }
-            for (int x = 0; x < fields.size(); x++) {
-                retorno += arrumar(String.valueOf(fields.get(x))) + ";";
-            }
-            return header + "\n" + retorno;
-        }
-
-        @Override
-        public String toString() {
-            String retorno = "[\n";
-            for (int x = 0; x < fields.size(); x++) {
-                retorno += this.cabecalhos.get(x) + ": \"" + arrumar(String.valueOf(fields.get(x))) + "\"\n";
-            }
-            return retorno + "]";
-        }
-
-        public int getIntField(String field) {
-            try {
-                String s = getField(field);
-                s = s.replaceAll(" ", "");
-                s = s.replaceAll(" ", "");
-                s = s.replaceAll("/.", "");
-                s = s.replaceAll("\\.", "");
-                int i = Integer.valueOf(s);
-                return i;
-            } catch (NumberFormatException numberFormatException) {
-                throw numberFormatException;
-            }
-
-        }
-
-        public String getValueOf(String field_name) {
-            return arruma(getField(field_name));
-        }
-
-        public ArrayList<String> getValueOf(ArrayList<String> fields) {
-            ArrayList<String> r = new ArrayList<String>();
-            for (String field : fields) {
-                r.add(getValueOf(field));
-            }
-            return r;
-        }
-
-        public String getValueOf(String... fields) {
-            String r = "";
-            for (int x = 0; x < fields.length; x++) {
-                r += arruma(getValueOf(fields[x]));
-                if (x < fields.length - 1) {
-                    r += " : ";
-                };
-            }
-            return r;
-        }
-
-    }
-
     public static String arruma(String s) {
         boolean repete = true;
         while (repete) {
@@ -830,7 +593,7 @@ public class CSV {
             return retorno + "]";
         }
 
-        private int find(String fieldname) {
+        public int find(String fieldname) {
             if (this.atributos.indexOf(fieldname) < 0) {
                 for (String atributo : atributos) {
                     if (atributo.contains(fieldname)) {
@@ -841,8 +604,12 @@ public class CSV {
             return this.atributos.indexOf(fieldname);
         }
 
-        private String get(int x) {
+        public String get(int x) {
             return this.atributos.get(x);
+        }
+
+        public ArrayList<String> getAtributos() {
+            return this.atributos;
         }
 
     }
@@ -854,51 +621,12 @@ public class CSV {
         private String atributename;
     }
 
-    public class IntDate {
+    class Registros extends Objects.Registro {
 
-        private Date date;
-        private int int_date;
-        private String s_format;
-
-        public IntDate() {
-            this.date = null;
-            this.int_date = 0;
-            this.s_format = null;
-        }
-
-        public IntDate(String s_date, String s_format) throws ParseException {
-            SimpleDateFormat f_in = new SimpleDateFormat(s_format);
-            this.date = f_in.parse(s_date);
-            this.recreate(new IntDate(date, "yyyyMMdd"));
-        }
-
-        private void recreate(IntDate original) {
-            this.date = original.date;
-            this.int_date = original.int_date;
-            this.s_format = original.s_format;
-        }
-
-        public IntDate(Date date, String format) {
-            this.date = date;
-            this.s_format = format;
-            SimpleDateFormat sdf = new SimpleDateFormat(this.s_format);
-            this.int_date = Integer.valueOf(sdf.format(date));
-        }
-
-        public int dateToInt(String s_date, String format_in, String format_out) throws ParseException {
-            SimpleDateFormat f_in = new SimpleDateFormat(format_in);
-            SimpleDateFormat f_out = new SimpleDateFormat(format_out);
-            Date d_date = f_in.parse(s_date);
-            return Integer.valueOf(f_out.format(d_date));
-        }
-
-        public int toInt() {
-            return this.int_date;
-        }
-
-        public String toString() {
-            return "" + this.int_date;
+        public Registros(String line, Cabecalho cabecalhos, String separator) {
+            super(line, cabecalhos, separator);
         }
 
     }
+
 }
